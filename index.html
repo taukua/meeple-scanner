@@ -154,7 +154,7 @@
 
   let scanner = null;
   let cameraRunning = false;
-
+  let ignoreDetection = false;
   let lastDetectedCode = "";
   let detectionTime = 0;
 
@@ -243,7 +243,9 @@ async function startCamera() {
       },
 
 function(decodedText) {
-
+if (ignoreDetection) {
+  return;
+}
   lastDetectedCode =
     String(decodedText).trim();
 
@@ -332,7 +334,7 @@ function(decodedText) {
 
   const gameId =
     lastDetectedCode;
-
+  ignoreDetection = true;
   lastDetectedCode = "";
 
   detectionTime = 0;
@@ -352,18 +354,22 @@ function(decodedText) {
     mode: "no-cors",
     cache: "no-store"
   })
-  .then(function() {
+ .then(function() {
 
-    showNotification(
-      "✓ " + gameId + " scanned",
-      true
-    );
+  showNotification(
+    "✓ " + gameId + " scanned",
+    true
+  );
 
-    if (navigator.vibrate) {
-      navigator.vibrate(150);
-    }
+  if (navigator.vibrate) {
+    navigator.vibrate(150);
+  }
 
-  })
+  setTimeout(function() {
+    ignoreDetection = false;
+  }, 2000);
+
+})
   .catch(function(error) {
 
     console.error(error);
