@@ -208,96 +208,86 @@
   }
 
 
-  async function startCamera() {
+async function startCamera() {
 
-    const staff =
-      localStorage.getItem("meepleStaff");
+  const staff =
+    localStorage.getItem("meepleStaff");
 
-    if (!staff) {
+  if (!staff) {
+    alert("Please save staff name first.");
+    return;
+  }
 
-      alert("Please save staff name first.");
+  if (cameraRunning) {
+    return;
+  }
 
-      return;
+  try {
 
-    }
+    scanner =
+      new Html5Qrcode("reader");
 
-    if (cameraRunning) {
-      return;
-    }
+    await scanner.start(
 
-    const status =
-      document.getElementById("status");
+      {
+        facingMode: "environment"
+      },
 
-    try {
+      {
+        fps: 10,
 
-      scanner =
-        new Html5Qrcode("reader");
-
-      await scanner.start(
-
-        {
-          facingMode: "environment"
-        },
-
-        {
-          fps: 10,
-
-          qrbox: {
-            width: 250,
-            height: 250
-          }
-        },
-
-        function(decodedText) {
-
-          // QR is detected,
-          // but NOT recorded automatically.
-
-          lastDetectedCode =
-            String(decodedText).trim();
-
-          detectionTime =
-            Date.now();
-
-          status.className =
-            "ready";
-
-          status.innerHTML =
-            "QR ready: " +
-            escapeHtml(lastDetectedCode);
-
-        },
-
-        function() {
-          // Ignore normal detection errors
+        qrbox: {
+          width: 250,
+          height: 250
         }
+      },
 
-      );
+function(decodedText) {
 
-      cameraRunning = true;
+  lastDetectedCode =
+    String(decodedText).trim();
 
-      document.getElementById("scanBtn").disabled = false;
-      document.getElementById("stopBtn").disabled = false;
-      document.getElementById("startBtn").disabled = true;
+  detectionTime =
+    Date.now();
 
-      status.className = "ready";
+  showNotification(
+    "QR ready: " + lastDetectedCode,
+    true,
+    false
+  );
 
-      status.innerHTML =
-        "Camera ready — point at QR";
+},
 
-    } catch (error) {
+      function() {
+        // Normal detection failures are ignored.
+      }
 
-      console.error(error);
+    );
 
-      status.className = "error";
+    cameraRunning = true;
 
-      status.innerHTML =
-        "Camera error: " +
-        escapeHtml(error.message || String(error));
+    document.getElementById("scanBtn").disabled = false;
+    document.getElementById("stopBtn").disabled = false;
+    document.getElementById("startBtn").disabled = true;
 
-    }
+    showNotification(
+      "Camera ready — point at QR",
+      true
+    );
+
+  } catch (error) {
+
+    console.error(error);
+
+    showNotification(
+      "Camera error: " +
+      (error.message || String(error)),
+      false
+    );
 
   }
+
+}
 
 
   function scanCurrentFrame() {
@@ -328,7 +318,7 @@
     return;
   }
 
-  if (Date.now() - detectionTime > 3000) {
+  if (Date.now() - detectionTime > 10000) {
 
     showNotification(
       "Aim at the QR again.",
@@ -387,10 +377,17 @@
 
 }
 
-  function showNotification(message, success) {
+let notificationTimer = null;
+
+function showNotification(message, success, autoHide = true) {
 
   const notification =
     document.getElementById("notification");
+
+  if (notificationTimer) {
+    clearTimeout(notificationTimer);
+    notificationTimer = null;
+  }
 
   notification.innerHTML =
     escapeHtml(message);
@@ -400,61 +397,59 @@
       ? "notification-success"
       : "notification-error";
 
-  setTimeout(function() {
+  if (autoHide) {
 
-    notification.innerHTML = "";
-    notification.className = "";
+    notificationTimer =
+      setTimeout(function() {
 
-  }, 2000);
+        notification.innerHTML = "";
+        notification.className = "";
+
+      }, 2000);
+
+  }
 }
   
 
-  async function stopCamera() {
+async function stopCamera() {
 
-    if (!cameraRunning || !scanner) {
-      return;
-    }
+  if (!cameraRunning || !scanner) {
+    return;
+  }
 
-    const status =
-      document.getElementById("status");
+  try {
 
-    try {
+    await scanner.stop();
 
-      await scanner.stop();
+    scanner.clear();
 
-      await scanner.clear();
+    cameraRunning = false;
+    scanner = null;
 
-      cameraRunning = false;
+    lastDetectedCode = "";
+    detectionTime = 0;
 
-      scanner = null;
+    document.getElementById("scanBtn").disabled = true;
+    document.getElementById("stopBtn").disabled = true;
+    document.getElementById("startBtn").disabled = false;
 
-      lastDetectedCode = "";
+    showNotification(
+      "Camera stopped",
+      true
+    );
 
-      detectionTime = 0;
+  } catch (error) {
 
-      document.getElementById("scanBtn").disabled = true;
-      document.getElementById("stopBtn").disabled = true;
-      document.getElementById("startBtn").disabled = false;
+    console.error(error);
 
-      status.className =
-        "ready";
-
-      status.innerHTML =
-        "Camera is off";
-
-    } catch (error) {
-
-      console.error(error);
-
-      status.className =
-        "error";
-
-      status.innerHTML =
-        "Could not stop camera.";
-
-    }
+    showNotification(
+      "Could not stop camera.",
+      false
+    );
 
   }
+
+}
 
 
   function escapeHtml(value) {
