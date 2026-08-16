@@ -81,6 +81,24 @@
     .disabled {
       opacity: 0.5;
     }
+
+    #notification {
+  min-height: 45px;
+  margin: 10px 0;
+  padding: 10px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: bold;
+  border-radius: 8px;
+}
+
+.notification-success {
+  background: #e8f5e9;
+}
+
+.notification-error {
+  background: #ffebee;
+}
   </style>
 </head>
 
@@ -109,24 +127,21 @@
 
   <div class="card">
 
-    <button id="startBtn" onclick="startCamera()">
-      📷 Start Camera
-    </button>
+  <button id="startBtn" onclick="startCamera()">
+    📷 Start Camera
+  </button>
 
-    <button id="scanBtn" onclick="scanCurrentFrame()" disabled>
-      🎯 Scan Game
-    </button>
+  <div id="reader"></div>
 
-    <button id="stopBtn" onclick="stopCamera()" disabled>
-      ⏹ Stop Camera
-    </button>
+  <button id="scanBtn" onclick="scanCurrentFrame()" disabled>
+    🎯 Scan Game
+  </button>
 
-    <div id="reader"></div>
+  <div id="notification"></div>
 
-    <div id="status" class="ready">
-      Camera is off
-    </div>
-
+  <button id="stopBtn" onclick="stopCamera()" disabled>
+    ⏹ Stop Camera
+  </button>
   </div>
 
 </div>
@@ -248,9 +263,8 @@
             "ready";
 
           status.innerHTML =
-            "QR detected:<br><b>" +
-            escapeHtml(lastDetectedCode) +
-            "</b><br>Press Scan Game";
+            "QR ready: " +
+            escapeHtml(lastDetectedCode);
 
         },
 
@@ -288,113 +302,112 @@
 
   function scanCurrentFrame() {
 
-    const status =
-      document.getElementById("status");
+  const notification =
+    document.getElementById("notification");
 
-    const staff =
-      localStorage.getItem("meepleStaff");
+  const staff =
+    localStorage.getItem("meepleStaff");
 
-    if (!cameraRunning) {
+  if (!cameraRunning) {
 
-      status.className = "error";
+    showNotification(
+      "Camera is not running.",
+      false
+    );
 
-      status.innerHTML =
-        "Camera is not running.";
+    return;
+  }
 
-      return;
+  if (!lastDetectedCode) {
 
-    }
+    showNotification(
+      "No QR detected.",
+      false
+    );
 
-    if (!lastDetectedCode) {
+    return;
+  }
 
-      status.className = "error";
+  if (Date.now() - detectionTime > 3000) {
 
-      status.innerHTML =
-        "No QR detected yet.";
-
-      return;
-
-    }
-
-    // Don't use an old QR that was detected
-    // a long time ago.
-
-    if (Date.now() - detectionTime > 3000) {
-
-      status.className = "error";
-
-      status.innerHTML =
-        "QR is no longer in view. Aim again.";
-
-      lastDetectedCode = "";
-
-      return;
-
-    }
-
-    const gameId =
-      lastDetectedCode;
+    showNotification(
+      "Aim at the QR again.",
+      false
+    );
 
     lastDetectedCode = "";
 
-    detectionTime = 0;
-
-    status.className =
-      "ready";
-
-    status.innerHTML =
-      "Recording " +
-      escapeHtml(gameId) +
-      "...";
-
-    const url =
-      API_URL +
-
-      "?action=scan" +
-
-      "&staff=" +
-      encodeURIComponent(staff) +
-
-      "&gameId=" +
-      encodeURIComponent(gameId) +
-
-      "&t=" +
-      Date.now();
-
-    fetch(url, {
-      method: "GET",
-      mode: "no-cors",
-      cache: "no-store"
-    })
-    .then(function() {
-
-      status.className =
-        "success";
-
-      status.innerHTML =
-        "✓ " +
-        escapeHtml(gameId) +
-        " recorded";
-
-      if (navigator.vibrate) {
-        navigator.vibrate(150);
-      }
-
-    })
-    .catch(function(error) {
-
-      console.error(error);
-
-      status.className =
-        "error";
-
-      status.innerHTML =
-        "Failed to record scan.";
-
-    });
-
+    return;
   }
 
+  const gameId =
+    lastDetectedCode;
+
+  lastDetectedCode = "";
+
+  detectionTime = 0;
+
+  const url =
+    API_URL +
+    "?action=scan" +
+    "&staff=" +
+    encodeURIComponent(staff) +
+    "&gameId=" +
+    encodeURIComponent(gameId) +
+    "&t=" +
+    Date.now();
+
+  fetch(url, {
+    method: "GET",
+    mode: "no-cors",
+    cache: "no-store"
+  })
+  .then(function() {
+
+    showNotification(
+      "✓ " + gameId + " scanned",
+      true
+    );
+
+    if (navigator.vibrate) {
+      navigator.vibrate(150);
+    }
+
+  })
+  .catch(function(error) {
+
+    console.error(error);
+
+    showNotification(
+      "Scan failed.",
+      false
+    );
+
+  });
+
+}
+
+  function showNotification(message, success) {
+
+  const notification =
+    document.getElementById("notification");
+
+  notification.innerHTML =
+    escapeHtml(message);
+
+  notification.className =
+    success
+      ? "notification-success"
+      : "notification-error";
+
+  setTimeout(function() {
+
+    notification.innerHTML = "";
+    notification.className = "";
+
+  }, 2000);
+}
+  
 
   async function stopCamera() {
 
