@@ -15,7 +15,6 @@
   </script>
 
   <style>
-
     * {
       box-sizing: border-box;
     }
@@ -35,7 +34,6 @@
 
     h1 {
       text-align: center;
-      margin-bottom: 25px;
     }
 
     .card {
@@ -45,26 +43,12 @@
       margin-bottom: 15px;
     }
 
-    label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight: bold;
-    }
-
-    input {
+    input,
+    button {
       width: 100%;
       padding: 14px;
       font-size: 18px;
       margin-bottom: 10px;
-    }
-
-    button {
-      width: 100%;
-      padding: 15px;
-      font-size: 18px;
-      cursor: pointer;
-      border: 0;
-      border-radius: 8px;
     }
 
     #reader {
@@ -82,6 +66,10 @@
       font-weight: bold;
     }
 
+    .ready {
+      background: #eeeeee;
+    }
+
     .success {
       background: #e8f5e9;
     }
@@ -90,15 +78,9 @@
       background: #ffebee;
     }
 
-    .ready {
-      background: #eeeeee;
+    .disabled {
+      opacity: 0.5;
     }
-
-    #staffDisplay {
-      font-size: 18px;
-      margin-bottom: 12px;
-    }
-
   </style>
 </head>
 
@@ -107,7 +89,6 @@
 <div class="container">
 
   <h1>🎲 Meeple Scanner</h1>
-
 
   <div class="card">
 
@@ -122,53 +103,46 @@
       Save Name
     </button>
 
-    <div
-      id="staffDisplay"
-      style="margin-top: 15px;">
-    </div>
+    <div id="staffDisplay"></div>
 
   </div>
 
-
   <div class="card">
 
-    <button onclick="startScanner()">
-      📷 Start Scanner
+    <button id="startBtn" onclick="startCamera()">
+      📷 Start Camera
+    </button>
+
+    <button id="scanBtn" onclick="scanCurrentFrame()" disabled>
+      🎯 Scan Game
+    </button>
+
+    <button id="stopBtn" onclick="stopCamera()" disabled>
+      ⏹ Stop Camera
     </button>
 
     <div id="reader"></div>
 
-    <div
-      id="status"
-      class="ready">
-      Scanner not started
+    <div id="status" class="ready">
+      Camera is off
     </div>
 
   </div>
 
 </div>
 
-
 <script>
 
-  // ===================================
-  // PUT YOUR APPS SCRIPT URL HERE
-  // ===================================
-
   const API_URL =
-    "https://script.google.com/macros/s/AKfycbx_ikKGCS4n8_zhOZHQGxAP8DLz1_FVKrIUjEMmQg9-UakVY8lw6bEhiWr4s8BC08cu7A/exec";
+    "https://script.google.com/macros/s/AKfycbxmhHdlR0OlkkO5y78hr_VAAGsNZlpKVTxEe322Bgnqlhjuy0-ryBs6TbyNt_IBhcHt/exec";
 
 
   let scanner = null;
+  let cameraRunning = false;
 
-  let scanning = false;
+  let lastDetectedCode = "";
+  let detectionTime = 0;
 
-  let lastScannedCode = "";
-
-  let lastScannedTime = 0;
-
-
-  // Load saved staff name
 
   window.addEventListener("load", function () {
 
@@ -177,11 +151,10 @@
 
     if (saved) {
 
-      document.getElementById(
-        "staffName"
-      ).value = saved;
+      document.getElementById("staffName").value = saved;
 
       showStaff(saved);
+
     }
 
   });
@@ -190,13 +163,14 @@
   function saveStaff() {
 
     const name =
-      document.getElementById(
-        "staffName"
-      ).value.trim();
+      document.getElementById("staffName").value.trim();
 
     if (!name) {
+
       alert("Please enter your name.");
+
       return;
+
     }
 
     localStorage.setItem(
@@ -211,9 +185,7 @@
 
   function showStaff(name) {
 
-    document.getElementById(
-      "staffDisplay"
-    ).innerHTML =
+    document.getElementById("staffDisplay").innerHTML =
       "Current staff: <b>" +
       escapeHtml(name) +
       "</b>";
@@ -221,50 +193,30 @@
   }
 
 
-  async function startScanner() {
+  async function startCamera() {
 
     const staff =
       localStorage.getItem("meepleStaff");
 
     if (!staff) {
 
-      alert(
-        "Please enter and save your name first."
-      );
+      alert("Please save staff name first.");
 
       return;
+
     }
 
-
-    if (scanning) {
+    if (cameraRunning) {
       return;
     }
-
 
     const status =
-      document.getElementById(
-        "status"
-      );
-
-
-    if (
-      typeof Html5Qrcode === "undefined"
-    ) {
-
-      status.className = "error";
-
-      status.innerHTML =
-        "QR scanner library failed to load.";
-
-      return;
-    }
-
+      document.getElementById("status");
 
     try {
 
       scanner =
         new Html5Qrcode("reader");
-
 
       await scanner.start(
 
@@ -281,22 +233,43 @@
           }
         },
 
-        onScanSuccess,
+        function(decodedText) {
 
-        function () {
-          // Normal scan failures are ignored.
+          // QR is detected,
+          // but NOT recorded automatically.
+
+          lastDetectedCode =
+            String(decodedText).trim();
+
+          detectionTime =
+            Date.now();
+
+          status.className =
+            "ready";
+
+          status.innerHTML =
+            "QR detected:<br><b>" +
+            escapeHtml(lastDetectedCode) +
+            "</b><br>Press Scan Game";
+
+        },
+
+        function() {
+          // Ignore normal detection errors
         }
 
       );
 
+      cameraRunning = true;
 
-      scanning = true;
+      document.getElementById("scanBtn").disabled = false;
+      document.getElementById("stopBtn").disabled = false;
+      document.getElementById("startBtn").disabled = true;
 
       status.className = "ready";
 
       status.innerHTML =
-        "Ready — point camera at a game QR";
-
+        "Camera ready — point at QR";
 
     } catch (error) {
 
@@ -306,79 +279,73 @@
 
       status.innerHTML =
         "Camera error: " +
-        escapeHtml(
-          error.message ||
-          String(error)
-        );
+        escapeHtml(error.message || String(error));
 
     }
 
   }
 
 
-  function onScanSuccess(decodedText) {
+  function scanCurrentFrame() {
 
-    const gameId =
-      String(decodedText).trim();
+    const status =
+      document.getElementById("status");
 
-    const now =
-      Date.now();
+    const staff =
+      localStorage.getItem("meepleStaff");
 
+    if (!cameraRunning) {
 
-    // Prevent the camera from recording
-    // the same QR repeatedly.
+      status.className = "error";
 
-    if (
-      gameId === lastScannedCode &&
-      now - lastScannedTime < 10000
-    ) {
+      status.innerHTML =
+        "Camera is not running.";
 
       return;
 
     }
 
+    if (!lastDetectedCode) {
 
-    lastScannedCode =
-      gameId;
+      status.className = "error";
 
-    lastScannedTime =
-      now;
+      status.innerHTML =
+        "No QR detected yet.";
 
-
-    recordGame(gameId);
-
-  }
-
-
-  function recordGame(gameId) {
-
-    const staff =
-      localStorage.getItem(
-        "meepleStaff"
-      );
-
-
-    const status =
-      document.getElementById(
-        "status"
-      );
-
-
-    status.className =
-      "success";
-
-    status.innerHTML =
-      "✓ " +
-      escapeHtml(gameId) +
-      " recorded";
-
-
-    if (navigator.vibrate) {
-
-      navigator.vibrate(150);
+      return;
 
     }
 
+    // Don't use an old QR that was detected
+    // a long time ago.
+
+    if (Date.now() - detectionTime > 3000) {
+
+      status.className = "error";
+
+      status.innerHTML =
+        "QR is no longer in view. Aim again.";
+
+      lastDetectedCode = "";
+
+      return;
+
+    }
+
+    const gameId =
+      lastDetectedCode;
+
+    lastDetectedCode = "";
+
+    detectionTime = 0;
+
+    status.className =
+      "ready";
+
+    status.innerHTML =
+      "Recording " +
+      escapeHtml(gameId) +
+      "...";
 
     const url =
       API_URL +
@@ -394,37 +361,85 @@
       "&t=" +
       Date.now();
 
-
-    // Send to Apps Script.
-    // We do not need to read its response.
-
     fetch(url, {
-
       method: "GET",
-
       mode: "no-cors",
-
       cache: "no-store"
+    })
+    .then(function() {
 
-    }).catch(function (error) {
+      status.className =
+        "success";
 
-      console.error(
-        "Logging error:",
-        error
-      );
+      status.innerHTML =
+        "✓ " +
+        escapeHtml(gameId) +
+        " recorded";
+
+      if (navigator.vibrate) {
+        navigator.vibrate(150);
+      }
+
+    })
+    .catch(function(error) {
+
+      console.error(error);
+
+      status.className =
+        "error";
+
+      status.innerHTML =
+        "Failed to record scan.";
 
     });
 
+  }
 
-    setTimeout(function () {
+
+  async function stopCamera() {
+
+    if (!cameraRunning || !scanner) {
+      return;
+    }
+
+    const status =
+      document.getElementById("status");
+
+    try {
+
+      await scanner.stop();
+
+      await scanner.clear();
+
+      cameraRunning = false;
+
+      scanner = null;
+
+      lastDetectedCode = "";
+
+      detectionTime = 0;
+
+      document.getElementById("scanBtn").disabled = true;
+      document.getElementById("stopBtn").disabled = true;
+      document.getElementById("startBtn").disabled = false;
 
       status.className =
         "ready";
 
       status.innerHTML =
-        "Ready for next game";
+        "Camera is off";
 
-    }, 1500);
+    } catch (error) {
+
+      console.error(error);
+
+      status.className =
+        "error";
+
+      status.innerHTML =
+        "Could not stop camera.";
+
+    }
 
   }
 
