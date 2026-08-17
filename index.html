@@ -130,7 +130,7 @@ select {
 </select>
 
 <button onclick="saveStaff()">
-  Save Staff
+  Save GM
 </button>
 
 <div id="staffDisplay"></div>
@@ -194,7 +194,7 @@ function saveStaff() {
 
   if (!name) {
 
-    alert("Please choose staff.");
+    alert("Please choose GM.");
 
     return;
 
@@ -213,7 +213,7 @@ function saveStaff() {
   function showStaff(name) {
 
     document.getElementById("staffDisplay").innerHTML =
-      "Current staff: <b>" +
+      "Current GM: <b>" +
       escapeHtml(name) +
       "</b>";
 
@@ -226,7 +226,7 @@ async function startCamera() {
     localStorage.getItem("meepleStaff");
 
   if (!staff) {
-    alert("Please save staff name first.");
+    alert("Please save GM name first.");
     return;
   }
 
