@@ -99,6 +99,12 @@
 .notification-error {
   background: #ffebee;
 }
+select {
+  width: 100%;
+  padding: 14px;
+  font-size: 18px;
+  margin-bottom: 10px;
+}
   </style>
 </head>
 
@@ -110,18 +116,24 @@
 
   <div class="card">
 
-    <label>Staff Name</label>
+    <label>GM Name</label>
 
-    <input
-      id="staffName"
-      placeholder="Enter your name"
-    >
+<select id="staffName">
+  <option value="">Choose GM</option>
+  <option value="Izu">Izu</option>
+  <option value="Rica">Rica</option>
+  <option value="Sam">Sam</option>
+  <option value="Michelle">Michelle</option>
+  <option value="Febby">Febby</option>
+  <option value="Popon">Popon</option>
+  <option value="Erwin">Erwin</option>
+</select>
 
-    <button onclick="saveStaff()">
-      Save Name
-    </button>
+<button onclick="saveStaff()">
+  Save Staff
+</button>
 
-    <div id="staffDisplay"></div>
+<div id="staffDisplay"></div>
 
   </div>
 
@@ -175,27 +187,27 @@
   });
 
 
-  function saveStaff() {
+function saveStaff() {
 
-    const name =
-      document.getElementById("staffName").value.trim();
+  const name =
+    document.getElementById("staffName").value;
 
-    if (!name) {
+  if (!name) {
 
-      alert("Please enter your name.");
+    alert("Please choose staff.");
 
-      return;
-
-    }
-
-    localStorage.setItem(
-      "meepleStaff",
-      name
-    );
-
-    showStaff(name);
+    return;
 
   }
+
+  localStorage.setItem(
+    "meepleStaff",
+    name
+  );
+
+  showStaff(name);
+
+}
 
 
   function showStaff(name) {
